@@ -1203,6 +1203,24 @@ class APSW(unittest.TestCase):
         for row in c.execute("select multi(), multi(1), multi(1,2), multi(1,2,3), multi(1,2,3,4), multi(1,2,3,4,5)"):
             self.assertEqual(row, (0, 1, 2, 3, 4, 5))
 
+        # compare non-deterministic scalars (the default) with non-deterministic
+        class CallCounter:
+            def __init__(self):
+                self.num_calls=0
+            def __call__(self):
+                self.num_calls+=1
+                return self.num_calls
+                
+        self.db.createscalarfunction("count1", CallCounter(), 0) # not determinitic
+        self.db.createscalarfunction("count2", CallCounter(), 0, False) # not determinitic
+        self.db.createscalarfunction("count3", CallCounter(), 0, True)  # deterministic
+        n = sum(1 for row in c.execute("select 1 where count1() == count1()"))
+        self.assertEqual(n, 0)
+        n = sum(1 for row in c.execute("select 1 where count2() == count2()"))
+        self.assertEqual(n, 0)
+        n = sum(1 for row in c.execute("select 1 where count3() == count3()"))
+        self.assertEqual(n, 1)
+        
 
     def testAggregateFunctions(self):
         "Verify aggregate functions"

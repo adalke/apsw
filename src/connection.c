@@ -2233,6 +2233,8 @@ apsw_free_func(void *funcinfo)
   :param name: The string name of the function.  It should be less than 255 characters
   :param callable: The function that will be called
   :param numargs: How many arguments the function takes, with -1 meaning any number
+  :param deterministic: True if the function will always return the same result given
+        the same inputs within a single SQL statement. The default is False.
 
   .. note::
 
@@ -2257,7 +2259,7 @@ apsw_free_func(void *funcinfo)
 static PyObject *
 Connection_createscalarfunction(Connection *self, PyObject *args)
 {
-  int numargs=-1;
+  int numargs=-1, deterministic=0;
   PyObject *callable;
   char *name=0;
   FunctionCBInfo *cbinfo;
@@ -2266,7 +2268,7 @@ Connection_createscalarfunction(Connection *self, PyObject *args)
   CHECK_USE(NULL);
   CHECK_CLOSED(self,NULL);
 
-  if(!PyArg_ParseTuple(args, "esO|i:createscalarfunction(name,callback, numargs=-1)", STRENCODING, &name, &callable, &numargs))
+  if(!PyArg_ParseTuple(args, "esO|ii:createscalarfunction(name, callback, numargs=-1, deterministic=False)", STRENCODING, &name, &callable, &numargs, &deterministic))
     return NULL;
 
   assert(name);
@@ -2296,7 +2298,7 @@ Connection_createscalarfunction(Connection *self, PyObject *args)
                 res=sqlite3_create_function_v2(self->db,
 					       name,
 					       numargs,
-					       SQLITE_UTF8,
+					       deterministic?SQLITE_UTF8|SQLITE_DETERMINISTIC:SQLITE_UTF8,
 					       cbinfo,
 					       cbinfo?cbdispatch_func:NULL,
 					       NULL,
